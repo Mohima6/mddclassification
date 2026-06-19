@@ -1,0 +1,9 @@
+﻿.venv/
+.idea/
+4244171/
+band_decomposition/
+connectivity_results/
+ml_results/
+processed_data_epochs/
+__pycache__/
+*.pyc
