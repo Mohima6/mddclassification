@@ -15,10 +15,6 @@ from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings('ignore')
-
-# ----------------------------------------------------------------------
-#  Paths (adjust to your folder structure)
-# ----------------------------------------------------------------------
 DATASET_PATH = r"C:\Users\mohimaCHAKRABORTY\mddclassify"
 CLEAN_EPOCHS_DIR = os.path.join(DATASET_PATH, "processed_data_epochs")
 BAND_DECOMP_DIR = os.path.join(DATASET_PATH, "band_decomposition")
@@ -34,9 +30,6 @@ FREQUENCY_BANDS = {
 }
 
 
-# ----------------------------------------------------------------------
-#  Connectivity computation functions (same as before)
-# ----------------------------------------------------------------------
 def compute_plv_pli_wpli(signal):
     n_ch, n_t = signal.shape
     analytic = hilbert(signal, axis=-1)
@@ -58,7 +51,6 @@ def compute_plv_pli_wpli(signal):
                 wpli[i, j] = wpli[j, i] = 0.0
     return plv, pli, wpli
 
-
 def average_connectivity_over_epochs(epochs_data):
     n_epochs = epochs_data.shape[0]
     plv_sum = pli_sum = wpli_sum = None
@@ -73,9 +65,6 @@ def average_connectivity_over_epochs(epochs_data):
     return plv_sum / n_epochs, pli_sum / n_epochs, wpli_sum / n_epochs
 
 
-# ----------------------------------------------------------------------
-#  Identify most common channel count (across subjects)
-# ----------------------------------------------------------------------
 def get_subject_channel_count(sub):
     """Read a single band file to determine number of channels."""
     sample_band = list(FREQUENCY_BANDS.keys())[0]
@@ -89,11 +78,8 @@ def get_subject_channel_count(sub):
         return None
 
 
-# Gather all subjects
 epoch_files = [f for f in os.listdir(CLEAN_EPOCHS_DIR) if f.endswith('_epochs.npy')]
 all_subjects = [f.replace('_epochs.npy', '') for f in epoch_files]
-
-# Load labels
 labels = {}
 for sub in all_subjects:
     label_file = os.path.join(CLEAN_EPOCHS_DIR, f"{sub}_labels.npy")
@@ -109,30 +95,24 @@ for sub in all_subjects:
 all_subjects = [s for s in all_subjects if labels.get(s) is not None]
 print(f"Total subjects with labels: {len(all_subjects)}")
 
-# Count channels per subject (by reading a single band file)
 chan_counts = {}
 for sub in tqdm(all_subjects, desc="Counting channels"):
     n_ch = get_subject_channel_count(sub)
     if n_ch is not None:
         chan_counts[sub] = n_ch
 
-# Find most common channel count
 count_freq = {}
 for n_ch in chan_counts.values():
     count_freq[n_ch] = count_freq.get(n_ch, 0) + 1
 most_common_ch = max(count_freq, key=count_freq.get)
 print(f"Most common channel count: {most_common_ch} (appears in {count_freq[most_common_ch]} subjects)")
 
-# Keep only subjects with that channel count
 subjects = [s for s, n_ch in chan_counts.items() if n_ch == most_common_ch]
 print(f"Retained {len(subjects)} subjects with consistent channel count.\n")
 
-# y vector (same for all)
+
 y = np.array([labels[s] for s in subjects])
 
-# ----------------------------------------------------------------------
-#  Compute connectivity features for each subject and band
-# ----------------------------------------------------------------------
 features = {'plv': {}, 'pli': {}, 'wpli': {}}
 for band in FREQUENCY_BANDS:
     for metric in features.keys():
@@ -154,19 +134,16 @@ for sub in tqdm(subjects, desc="Computing connectivity"):
             vec = mat[triu_indices]
             features[metric][band].append(vec)
 
-# Convert to numpy arrays
 for metric in features:
     for band in FREQUENCY_BANDS:
         if features[metric][band]:
             X_list = features[metric][band]
-            # All vectors should have same length now
+            
             features[metric][band] = (np.array(X_list), y)
         else:
             features[metric][band] = (None, y)
 
-# ----------------------------------------------------------------------
-#  Classifiers and hyperparameter grids
-# ----------------------------------------------------------------------
+
 classifiers = {
     'LogisticRegression': {
         'model': LogisticRegression(random_state=42, max_iter=1000),
@@ -193,9 +170,6 @@ classifiers = {
 }
 
 
-# ----------------------------------------------------------------------
-#  Nested cross‑validation (with clear variable names)
-# ----------------------------------------------------------------------
 def nested_cv(X, y, clf_dict, n_outer=5, n_inner=3, random_state=42):
     outer_split = StratifiedKFold(n_splits=n_outer, shuffle=True, random_state=random_state)
 
@@ -211,7 +185,7 @@ def nested_cv(X, y, clf_dict, n_outer=5, n_inner=3, random_state=42):
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
-        # Inner CV for hyperparameter tuning
+        
         inner_cv = StratifiedKFold(n_splits=n_inner, shuffle=True, random_state=random_state)
         gs = GridSearchCV(clf_dict['model'], clf_dict['param_grid'],
                           cv=inner_cv, scoring='accuracy', n_jobs=-1)
@@ -239,9 +213,6 @@ def nested_cv(X, y, clf_dict, n_outer=5, n_inner=3, random_state=42):
             'precision': prec, 'f1': f1, 'roc_auc': auc}
 
 
-# ----------------------------------------------------------------------
-#  Run evaluation for each metric and band
-# ----------------------------------------------------------------------
 results = {'plv': {}, 'pli': {}, 'wpli': {}}
 for metric in results.keys():
     for band in FREQUENCY_BANDS:
@@ -256,9 +227,6 @@ for metric in results.keys():
             res = nested_cv(X, y_band, clf_dict)
             results[metric][band][clf_name] = res
 
-# ----------------------------------------------------------------------
-#  Save results as tab‑separated tables (one per performance metric)
-# ----------------------------------------------------------------------
 metrics_list = ['accuracy', 'sensitivity', 'specificity', 'precision', 'f1', 'roc_auc']
 band_names = list(FREQUENCY_BANDS.keys())
 classifier_names = list(classifiers.keys())
