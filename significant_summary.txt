@@ -1,0 +1,16 @@
+Band	Metric	Significant pairs (FDR < 0.05)	Total pairs
+delta	plv	193	231
+delta	pli	94	231
+delta	wpli	106	231
+theta	plv	159	231
+theta	pli	199	231
+theta	wpli	154	231
+alpha	plv	91	231
+alpha	pli	163	231
+alpha	wpli	178	231
+beta	plv	91	231
+beta	pli	179	231
+beta	wpli	155	231
+gamma	plv	0	231
+gamma	pli	0	231
+gamma	wpli	0	231
